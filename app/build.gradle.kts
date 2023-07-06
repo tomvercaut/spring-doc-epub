@@ -17,6 +17,8 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
 
+    implementation("org.apache.commons:commons-lang3:3.12.0")
+
     implementation("org.jetbrains:annotations:24.0.1")
     implementation("org.jsoup:jsoup:1.16.1")
 

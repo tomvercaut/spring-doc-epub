@@ -3,15 +3,43 @@
  */
 package tv.spring.doc.epub;
 
+import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+@Log4j2
 public class App {
 
     public static void main(String[] args) {
         var options = new AppOptions();
+        if (!Files.exists(Path.of(options.getOutputDir()))) {
+            try {
+                Files.createDirectories(Path.of(options.getOutputDir()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
         var baseUrl = getProjectUrl(options.getProject(), options.getSpringVersion());
-        var doc = new SpringDocument(baseUrl);
-        doc.build();
+        try {
+            var optBook = BookGenerator.create(new URI(baseUrl), true);
+            if (optBook.isEmpty()) {
+                log.error("Unable to create book from documentation.");
+                System.exit(1);
+            }
+            var book = optBook.get();
+            var writer = new EpubBookWriter();
+            var outputPath = Paths.get(options.getOutputDir(), options.getProject() + "-" + options.getSpringVersion() + ".epub");
+            writer.write(outputPath, book);
+        } catch (URISyntaxException | IOException e) {
+            log.error(e);
+            System.exit(1);
+        }
     }
 
     public static String getProjectUrl(@NotNull String projectName, @NotNull String version) {

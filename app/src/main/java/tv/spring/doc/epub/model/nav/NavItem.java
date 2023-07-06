@@ -9,12 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a node in the navigation tree.
+ * Represents an item in the navigation tree.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Node {
+public class NavItem {
     /** Depth of the node in the navigation tree.*/
     private int depth = 0;
     /** Link to another webpage or document section.*/
@@ -22,15 +22,24 @@ public class Node {
     /** Text displayed on the navigation tree item.*/
     private String name = "";
     /** List of nested navigation tree items.*/
-    private List<Node> children = new ArrayList<>();
+    private List<NavItem> children = new ArrayList<>();
 
     /**
-     * Clear all the properties and set them to their default values.
+     * Clears all the properties and set them to their default values.
      */
     public void clear() {
         depth = 0;
         href = "";
         name = "";
         children.clear();
+    }
+
+    /**
+     * Checks if the current object is empty.
+     *
+     * @return true if the depth, href, name, and children properties are all empty; otherwise, false.
+     */
+    public boolean isEmpty() {
+        return depth == 0 && href.isEmpty() && name.isEmpty() && children.isEmpty();
     }
 }

@@ -3,16 +3,33 @@ package tv.spring.doc.epub.parser.nav;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Element;
-import tv.spring.doc.epub.model.nav.Node;
+import tv.spring.doc.epub.DocumentationRetriever;
+import tv.spring.doc.epub.model.nav.NavItem;
 
+import java.net.URI;
 import java.util.Optional;
 
 /**
  * The {@code NodeParser} class is responsible for parsing HTML elements and retrieving
- * an {@link Node} object representing a navigation tree.
+ * an {@link NavItem} object representing a navigation tree.
  */
 @Log4j2
-public class NodeParser {
+public class NavTreeParser {
+
+    /**
+     * Retrieves the documentation for the given URI and returns it as an Optional Node.
+     *
+     * @param uri the URI of the documentation to retrieve
+     * @return An Optional Node representing the retrieved navigation tree, or Optional.empty() if not found
+     */
+    public static Optional<NavItem> fromUri(@NotNull URI uri) {
+        var opt = DocumentationRetriever.get(uri);
+        if (opt.isEmpty()) {
+            return Optional.empty();
+        }
+        var doc = opt.get();
+        return body(doc.body(), uri);
+    }
 
     /**
      * Retrieves a Node representing a navigation tree from an HTML body element.
@@ -31,8 +48,9 @@ public class NodeParser {
      *     </body>
      * }</pre>
      * <p>
-     * The function uses {@link NodeParser#item(Element)} to process the (nested) li elements inside the "nav-list" ul element.
+     * The function uses {@link NavTreeParser#item(Element, URI)} to process the (nested) li elements inside the "nav-list" ul element.
      * @param body the HTML body element
+     * @param baseUri URI to verify a navigation node is in the same domain as the input domain.
      * @return An Optional containing an Index object if the required conditions are met, otherwise an empty Optional
      * Required conditions:
      * <ul>
@@ -42,7 +60,7 @@ public class NodeParser {
      *     <li>a li element in the above required nav-list ul element</li>
      * </ul>
      */
-    public Optional<Node> body(@NotNull Element body) {
+    public static Optional<NavItem> body(@NotNull Element body, @NotNull URI baseUri) {
         if (!body.tagName().equals("body")) {
             log.error(String.format("Expected a <body> HTML element but got %s", body.tagName()));
             return Optional.empty();
@@ -65,7 +83,7 @@ public class NodeParser {
                     "Unable to find nav-list item in navigation bar.");
             return Optional.empty();
         }
-        return item(li);
+        return item(li, baseUri);
     }
 
     /**
@@ -86,6 +104,7 @@ public class NodeParser {
      * }</pre>
      *
      * @param li The li element to retrieve the navigation node.
+     * @param baseUri URI to verify a navigation node is in the same domain as the input domain.
      * @return An Optional containing the Index object if the li element matches the required conditions, otherwise an empty Optional.
      * Required conditions:
      * <ul>
@@ -93,7 +112,7 @@ public class NodeParser {
      *     <li>input li element has a class attribute equal to "nav-item"</li>
      * </ul>
      */
-    public Optional<Node> item(@NotNull Element li) {
+    public static Optional<NavItem> item(@NotNull Element li, @NotNull URI baseUri) {
         if (!li.tagName().equals("li")) {
             log.error(String.format("Expected a <li> HTML element but got %s", li.tagName()));
             return Optional.empty();
@@ -103,23 +122,31 @@ public class NodeParser {
             return Optional.empty();
         }
         int depth = Integer.parseInt(li.attr("data-depth"), 10);
-        var node = new Node();
+        var node = new NavItem();
         node.setDepth(depth);
 
         var a = li.selectFirst("> a[href]");
         if (a != null) {
             node.setName(a.text());
             node.setHref(a.attr("href"));
+            URI uri = URI.create(node.getHref());
+            if (uri.isAbsolute() && !node.getHref().startsWith(baseUri.toString())) {
+                log.info(String.format("URI [%s] is out of the documentation domain [%s].", node.getHref(), baseUri));
+                return Optional.of(new NavItem());
+            }
         }
         var uls = li.select("> ul[class=nav-list]");
         for (Element ul : uls) {
             var lis = ul.select("> li[class=nav-item]");
             for(Element tis : lis) {
-                var opt = item(tis);
+                var opt = item(tis, baseUri);
                 if (opt.isEmpty()) {
                     return Optional.empty();
                 }
-                node.getChildren().add(opt.get());
+                var t = opt.get();
+                if (!t.isEmpty()) {
+                    node.getChildren().add(opt.get());
+                }
             }
         }
 
