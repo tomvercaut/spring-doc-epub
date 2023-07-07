@@ -4,7 +4,7 @@ import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Element;
 import tv.spring.doc.epub.DocumentationRetriever;
-import tv.spring.doc.epub.model.nav.NavItem;
+import tv.spring.doc.epub.model.NavItem;
 
 import java.net.URI;
 import java.util.Optional;

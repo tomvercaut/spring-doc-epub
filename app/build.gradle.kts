@@ -12,6 +12,8 @@ dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
 
+    implementation(project(":model"))
+
     implementation(platform("org.apache.logging.log4j:log4j-bom:2.20.0"))
 
     implementation("org.apache.logging.log4j:log4j-api")

@@ -3,7 +3,7 @@ package tv.spring.doc.epub;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
-import tv.spring.doc.epub.model.nav.NavItem;
+import tv.spring.doc.epub.model.NavItem;
 
 import java.util.List;
 import java.util.Map;

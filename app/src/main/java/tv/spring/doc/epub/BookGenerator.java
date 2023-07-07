@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
 import tv.spring.doc.epub.model.Book;
-import tv.spring.doc.epub.model.nav.NavItem;
+import tv.spring.doc.epub.model.NavItem;
 import tv.spring.doc.epub.parser.nav.NavTreeParser;
 
 import java.net.MalformedURLException;
