@@ -3,7 +3,7 @@ package tv.spring.doc.epub.model
 /**
  * Represents an item in the navigation tree.
  */
-class NavItem(// Depth of the node in the navigation tree.
+data class NavItem(// Depth of the node in the navigation tree.
     var depth: Int = 0,
     /** Link to another webpage or document section.*/
     var href: String = "",

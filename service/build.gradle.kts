@@ -4,4 +4,5 @@ plugins {
 
 dependencies {
     implementation(libs.jsoup)
+    implementation(libs.kotlin.logging.jvm)
 }

@@ -10,25 +10,24 @@ repositories {
 
 dependencies {
     // Use JUnit Jupiter for testing.
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.1")
+    testImplementation(testLibs.junit)
 
     implementation(project(":model"))
 
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.20.0"))
+    implementation(platform(libs.log4j.bom))
 
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
 
-    implementation("org.apache.commons:commons-lang3:3.12.0")
+    implementation(libs.apache.commons.lang3)
+    implementation(libs.jetbrains.annotations)
+    implementation(libs.jsoup)
 
-    implementation("org.jetbrains:annotations:24.0.1")
-    implementation("org.jsoup:jsoup:1.16.1")
+    compileOnly(libs.lombok)
+    annotationProcessor(libs.lombok)
 
-    compileOnly("org.projectlombok:lombok:1.18.28")
-    annotationProcessor("org.projectlombok:lombok:1.18.28")
-
-    testCompileOnly("org.projectlombok:lombok:1.18.28")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.28")
+    testCompileOnly(libs.lombok)
+    testAnnotationProcessor(libs.lombok)
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
