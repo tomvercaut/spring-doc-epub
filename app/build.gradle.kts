@@ -13,6 +13,8 @@ dependencies {
     testImplementation(testLibs.junit)
 
     implementation(project(":model"))
+    implementation(project(":common"))
+    implementation(project(":service"))
 
     implementation(platform(libs.log4j.bom))
 

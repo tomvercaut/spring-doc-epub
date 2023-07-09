@@ -2,6 +2,7 @@ package tv.spring.doc.epub;
 
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
+import tv.spring.doc.epub.common.PathChecker;
 import tv.spring.doc.epub.model.Book;
 
 import java.io.BufferedWriter;

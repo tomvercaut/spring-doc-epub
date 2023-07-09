@@ -21,10 +21,11 @@ dependencyResolutionManagement {
         }
         create("testLibs") {
             library("junit", "org.junit.jupiter", "junit-jupiter").version("5.9.1")
+            library( "apache.commons.lang3", "org.apache.commons", "commons-lang3").version("3.12.0")
         }
     }
 }
 
 rootProject.name = "spring-doc-epub"
-include("model", "service")
+include("model", "common", "service")
 include("app")
