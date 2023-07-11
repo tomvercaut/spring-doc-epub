@@ -1,6 +1,5 @@
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
-    application
+    id("spring.doc.epub.kotlin-application-conventions")
 }
 
 repositories {
@@ -16,20 +15,14 @@ dependencies {
     implementation(project(":common"))
     implementation(project(":service"))
 
-    implementation(platform(libs.log4j.bom))
-
-    implementation("org.apache.logging.log4j:log4j-api")
-    implementation("org.apache.logging.log4j:log4j-core")
+    implementation(libs.kotlin.logging.jvm)
+    implementation(libs.logback.core)
+    implementation(libs.logback.classic)
 
     implementation(libs.apache.commons.lang3)
     implementation(libs.jetbrains.annotations)
     implementation(libs.jsoup)
 
-    compileOnly(libs.lombok)
-    annotationProcessor(libs.lombok)
-
-    testCompileOnly(libs.lombok)
-    testAnnotationProcessor(libs.lombok)
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -41,7 +34,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass.set("tv.spring.doc.epub.App")
+    mainClass.set("tv.spring.doc.epub.AppKt")
 }
 
 tasks.named<Test>("test") {
