@@ -3,7 +3,13 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":model"))
+
     implementation(libs.kotlin.logging.jvm)
+    implementation(libs.jsoup)
+    implementation(libs.apache.commons.lang3)
+
     testImplementation(testLibs.junit)
-    testImplementation(testLibs.apache.commons.lang3)
+    testImplementation(libs.logback.core)
+    testImplementation(libs.logback.classic)
 }
