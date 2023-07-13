@@ -3,16 +3,18 @@ package tv.spring.doc.epub.common.parser
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import tv.spring.doc.epub.common.DocumentationRetriever
 import tv.spring.doc.epub.model.NavItem
+import tv.spring.doc.epub.service.DocumentationRetrievalService
 import java.net.URI
 
 /**
  * The `NodeParser` class is responsible for parsing HTML elements and retrieving
  * an [NavItem] object representing a navigation tree.
  */
-object NavTreeParser {
-    private val log = KotlinLogging.logger {  }
+class NavTreeParser(private val documentationRetrievalService: DocumentationRetrievalService) {
+    companion object {
+        private val log = KotlinLogging.logger { }
+    }
 
     /**
      * Retrieves the documentation for the given URI and returns it as an Optional Node.
@@ -20,9 +22,8 @@ object NavTreeParser {
      * @param uri the URI of the documentation to retrieve
      * @return An Optional Node representing the retrieved navigation tree, or Optional.empty() if not found
      */
-    @JvmStatic
     fun fromUri(uri: URI): Result<NavItem> {
-        val result: Result<Document> = DocumentationRetriever[uri]
+        val result: Result<Document> = documentationRetrievalService.get(uri)
         if (result.isFailure) {
             return Result.failure(result.exceptionOrNull()!!)
         }
@@ -125,7 +126,6 @@ object NavTreeParser {
      *  * input li element has a class attribute equal to "nav-item"
      *
      */
-    @JvmStatic
     fun item(li: Element, baseUri: URI): Result<NavItem> {
         if (li.tagName() != "li") {
             return Result.failure(Throwable("Expected a <li> HTML element but got ${li.tagName()}"))

@@ -10,6 +10,7 @@ import java.io.FileWriter
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 
 class EpubBookWriter : BookWriter {
     @Throws(IOException::class)
@@ -31,6 +32,8 @@ class EpubBookWriter : BookWriter {
                 "html",
                 "-t",
                 "epub",
+                "--resource-path",
+                Paths.get(path.parent.toString(), "img").toString(),
                 "-o",
                 path.toFile().getCanonicalPath(),
                 tmpFile.absolutePath

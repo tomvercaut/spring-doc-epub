@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":model"))
+    implementation(project(":service"))
 
     implementation(libs.kotlin.logging.jvm)
     implementation(libs.jsoup)

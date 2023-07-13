@@ -5,8 +5,9 @@ import org.jsoup.nodes.Document
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import tv.spring.doc.epub.common.parser.NavTreeParser.item
 import tv.spring.doc.epub.model.NavItem
+import tv.spring.doc.epub.service.DocumentationRetrievalService
+import tv.spring.doc.epub.service.DownloadService
 import java.io.IOException
 import java.net.URI
 
@@ -23,10 +24,11 @@ internal class NavItemParserTest {
 
     @Test
     fun nestedNavItems() {
+        val navTreeParser = NavTreeParser(DocumentationRetrievalService(DownloadService()))
         val liDepth0 = doc!!.selectFirst("ul>li")
         Assertions.assertNotNull(liDepth0)
         Assertions.assertEquals(liDepth0!!.attr("data-depth"), "0")
-        val result = item(liDepth0, URI.create(""))
+        val result = navTreeParser.item(liDepth0, URI.create(""))
         Assertions.assertNotNull(result)
         Assertions.assertTrue(result.isSuccess)
         val index = result.getOrThrow()

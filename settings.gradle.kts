@@ -21,6 +21,7 @@ dependencyResolutionManagement {
             library( "apache.commons.lang3", "org.apache.commons", "commons-lang3").version("3.12.0")
             library("jetbrains.annotations", "org.jetbrains", "annotations").version("24.0.1")
             library("lombok", "org.projectlombok", "lombok").version("1.18.28")
+            library("uuid.generator", "com.fasterxml.uuid", "java-uuid-generator").version("4.2.0")
         }
         create("testLibs") {
             library("junit", "org.junit.jupiter", "junit-jupiter").version("5.9.1")

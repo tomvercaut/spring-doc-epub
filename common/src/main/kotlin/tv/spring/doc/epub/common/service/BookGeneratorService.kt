@@ -1,51 +1,182 @@
-package tv.spring.doc.epub.common
+package tv.spring.doc.epub.common.service
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.tuple.ImmutablePair
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
-import tv.spring.doc.epub.common.parser.NavTreeParser.fromUri
+import tv.spring.doc.epub.common.parser.NavTreeParser
+import tv.spring.doc.epub.common.shift
 import tv.spring.doc.epub.model.Book
 import tv.spring.doc.epub.model.NavItem
+import tv.spring.doc.epub.service.DocumentationRetrievalService
+import tv.spring.doc.epub.service.DownloadService
 import java.net.MalformedURLException
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.URL
-import java.util.*
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.concurrent.*
 import java.util.function.Consumer
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.set
 
-object BookGenerator {
-    private val log = KotlinLogging.logger {}
+class BookGeneratorService(
+    private val navTreeParser: NavTreeParser,
+    private val documentationRetrievalService: DocumentationRetrievalService
+) {
+    companion object {
+        private val log = KotlinLogging.logger {}
+        private val downloadExecutorService: ExecutorService =
+            Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+        private val downloadService = DownloadService()
+    }
 
-    @JvmStatic
-    fun create(uri: URI, parallel: Boolean): Result<Book> {
-        val resNav = fromUri(uri)
+    fun create(uri: URI, outputPath: String, parallel: Boolean): Result<Book> {
+        val resNav = navTreeParser.fromUri(uri)
         if (resNav.isFailure) {
             return Result.failure(resNav.exceptionOrNull()!!)
         }
         val navTree = resNav.getOrThrow()
         val navTreeByHref = mapNavItems(navTree)
         val hrefs = getOrderedHrefs(navTree)
+        // Retrieve a map of the documentation by URL
         val resDoc = getDocumentListFromNavigation(uri, hrefs, parallel)
-        if (resDoc.isFailure) return Result.failure(resDoc.exceptionOrNull()!!)
+        if (resDoc.isFailure) {
+            log.error("Unable to retrieve all documentation based on the documentation index.")
+            return Result.failure(resDoc.exceptionOrNull()!!)
+        }
         val docs = resDoc.getOrThrow()
+
+        // Extract a map of the actual content by URL
         val resArticle = getArticles(docs)
         if (resArticle.isFailure) return Result.failure(resArticle.exceptionOrNull()!!)
         val articlesByHref = resArticle.getOrThrow()
         if (!checkMissingUrls(navTreeByHref, docs)) {
             return Result.failure(Throwable("Missing an URL from the navigation map used in the document map."))
         }
+
+        // Retrieve and store the images used in the articles
+        val imgPath = Paths.get(outputPath, "img")
+        if (!Files.exists(imgPath)) Files.createDirectory(imgPath)
+        val resImages = getImages(articlesByHref, uri, imgPath.toString())
+        if (resImages.isFailure) {
+            log.error("Unable to retrieve all images.")
+            return Result.failure(resImages.exceptionOrNull()!!)
+        }
+        val imageSrcsPerHref = resImages.getOrThrow()
+
+        // Modify the image links in the articles
+        relinkImgTags(imageSrcsPerHref, imgPath.toString())
+
         shift(hrefs, navTreeByHref, articlesByHref)
         val book = Book()
         hrefs.stream().map { key: String? -> articlesByHref[key] }
             .forEach { node: Node? -> book.addSection(node!!) }
         return Result.success(book)
+    }
+
+    /**
+     * Relinks the img tags in the HTML document with new relative paths.
+     *
+     * @param map A mutable map that contains the href as the key and a list of pairs of img [Node]s and [Path]s as the value.
+     * @param outputPath The path of the output HTML file.
+     */
+    private fun relinkImgTags(map: MutableMap<String, List<Pair<Node, Path>>>, outputPath: String) {
+        val opath = Paths.get(outputPath)
+        for (href in map.keys) {
+            val list = map[href]!!
+            for (pair in list) {
+                val imgNode = pair.first
+                val relPath = opath.relativize(pair.second)
+                imgNode.attr("src", relPath.toString())
+            }
+        }
+    }
+
+    /**
+     *
+     * Retrieves images for each article in the provided map of hrefs and nodes.
+     *
+     * Each node contains a list of pairs containing the img node and the corresponding filepath of the downloaded image.
+     *
+     * @param articlesByHref A map containing href values as keys and corresponding Node objects as values.
+     * @param uri base URI for the project documentation site
+     * @param outputPath The path where the retrieved images will be saved.
+     *
+     * @return A Result object containing a mutable map with href values as keys
+     *         and a list of pairs containing the corresponding Node object and the path to the saved image as values.
+     *         If the retrieval of images fails, an error message will be logged and a Result object with the failure
+     *         exception will be returned.
+     */
+    private fun getImages(articlesByHref: Map<String, Node>, uri: URI, outputPath: String): Result<MutableMap<String, List<Pair<Node, Path>>>> {
+        val map = mutableMapOf<String, List<Pair<Node, Path>>>()
+        for (href in articlesByHref.keys) {
+            val article = articlesByHref[href] ?: continue
+            val result = getImages(href, article, uri, outputPath)
+            if (result.isFailure) {
+                log.error("Unable to retrieve all images for: $uri")
+                return Result.failure(result.exceptionOrNull()!!)
+            }
+            map[href] = result.getOrThrow()
+        }
+        return Result.success(map)
+    }
+
+    /**
+     * Retrieves the images from the given article node and downloads them to the specified output path.
+     *
+     * @param href The URL of the article.
+     * @param article The article node containing the images to download.
+     * @param uri base URI for the project documentation site
+     * @param outputPath The path where the images will be saved.
+     * @return A Result object containing a list of pairs. Each pair consists of an image node and its corresponding downloaded path.
+     *         If an error occurs during the retrieval or download process, a failure result is returned with the corresponding exception.
+     */
+    private fun getImages(href: String, article: Node, uri: URI, outputPath: String): Result<MutableList<Pair<Node, Path>>> {
+        if (article !is Element) {
+            return Result.failure(Throwable("The article Node is not an Element. Unable to find any img children tags."))
+        }
+        val imgTags = article.select("img")
+        val tasks = mutableListOf<Future<Result<Pair<Node, Path>>>>()
+        imgTags.forEach { img ->
+            val src = img.attr("src")
+            if (src.isNotBlank()) {
+                val imgHref: URL = if (src.startsWith("../")) {
+                    val uriPage = uri.resolve(href)
+                    val imgUri = uriPage.resolve(src)
+                    imgUri.toURL()
+//                    URL(URL(href), src)
+                } else {
+                    URL(src)
+                }
+                val future: Future<Result<Pair<Node, Path>>> = downloadExecutorService.submit(
+                    Callable {
+                        val rp = downloadService.downloadImage(outputPath, imgHref.toURI())
+                        if (rp.isFailure) {
+                            Result.failure(rp.exceptionOrNull()!!)
+                        } else {
+                            Result.success(Pair(img, rp.getOrThrow()))
+                        }
+                    }
+                )
+                tasks.add(future)
+
+            }
+        }
+        val pairs = mutableListOf<Pair<Node,Path>>()
+        for (task in tasks) {
+            val result = task.get()
+            if (result.isFailure) {
+                return Result.failure(result.exceptionOrNull()!!)
+            }
+            val pair = result.getOrThrow()
+            pairs.add(pair)
+        }
+        return Result.success(pairs)
     }
 
     /**
@@ -64,7 +195,8 @@ object BookGenerator {
                 log.error(msg)
                 return Result.failure(Throwable(msg))
             } else if (n > 1) {
-                val msg = "Multiple article tags found inside the document [href=$href]. Unable to determine which one to extract."
+                val msg =
+                    "Multiple article tags found inside the document [href=$href]. Unable to determine which one to extract."
                 log.error(msg)
                 return Result.failure(Throwable(msg))
             } else {
@@ -164,7 +296,7 @@ object BookGenerator {
                 }
             }
         }
-        val map : MutableMap<String, Document> = mutableMapOf()
+        val map: MutableMap<String, Document> = mutableMapOf()
         for (href in docs.keys) {
             val r = docs[href] ?: return Result.failure(NullPointerException("Failed to get document for $href"))
             if (r.isFailure) {
@@ -191,7 +323,7 @@ object BookGenerator {
             }
             var turi = URI.create(turl)
             turi = turi.resolve(href)
-            val t: Result<Document> = DocumentationRetriever[turi]
+            val t: Result<Document> = documentationRetrievalService.get(turi)
             if (t.isFailure) {
                 ImmutablePair<String, Result<Document>>(
                     href,
